@@ -49,15 +49,17 @@ def ask_second_night(question: str) -> str:
     return response.choices[0].message.content
 
 
-if __name__ == "__main__":
-    print("White Nights — Second Night Analyzer\n")
 
-    while True:
-        user_input = input("> ")
-        if user_input.lower() == "exit":
-            break
 
-        answer = ask_second_night(user_input)
-        print("\nResult:")
-        print(answer)
-        print()
+# if __name__ == "__main__":
+#     print("White Nights — Second Night Analyzer\n")
+
+#     while True:
+#         user_input = input("> ")
+#         if user_input.lower() == "exit":
+#             break
+
+#         answer = ask_second_night(user_input)
+#         print("\nResult:")
+#         print(answer)
+#         print()
