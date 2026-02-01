@@ -13,15 +13,23 @@ Responses are grounded strictly in the text, with a literary, seminar-style tone
 """
 
 def highlight_quotes(text):
-    # Italicize text inside quotes
     return re.sub(r'“(.*?)”', r'*“\1”*', text)
 
-def chat_with_professor(message, history):
+
+def chat_with_professor_stream(message, history):
+    # Add user message immediately
     history.append({"role": "user", "content": message})
-    answer = ask_second_night(message)
-    answer = highlight_quotes(answer)
-    history.append({"role": "assistant", "content": answer})
-    return history, ""
+    partial_answer = ""
+    
+    # STREAMING LOOP
+    for chunk in ask_second_night(message):
+        partial_answer += chunk
+        # yield updated history + empty string for textbox reset
+        yield history + [{"role": "assistant", "content": highlight_quotes(partial_answer)}], ""
+    
+    # Append final answer to history
+    history.append({"role": "assistant", "content": highlight_quotes(partial_answer)})
+
 
 # Gradio UI
 with gr.Blocks() as demo:
@@ -35,17 +43,16 @@ with gr.Blocks() as demo:
 
     gr.Markdown(DESCRIPTION)
 
-    chatbot = gr.Chatbot(label="Conversation", height=500)  # <- removed `type`
+    chatbot = gr.Chatbot(label="Conversation", height=500)
     msg = gr.Textbox(
         placeholder="Ask a question, or share a thought from the Second Night…",
         label="Your message"
     )
     clear = gr.Button("Clear conversation")
 
-    msg.submit(chat_with_professor, [msg, chatbot], [chatbot, msg])
+    msg.submit(chat_with_professor_stream, [msg, chatbot], [chatbot, msg])
     clear.click(lambda: [], None, chatbot)
 
-# Launch with theme and CSS (Gradio 6+)
 demo.launch(
     theme=gr.themes.Soft(
         primary_hue="amber",

@@ -32,22 +32,22 @@ Rules:
 - Focus on emotional subtext, symbolism, and character psychology
 """
 
-def ask_second_night(question: str) -> str:
-    response = client.chat.completions.create(
+
+def ask_second_night(question: str):
+    stream = client.chat.completions.create(
         model="gemini-3-flash-preview",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": question}
         ],
-        temperature=0.3
+        temperature=0.3,
+        stream=True  # important for streaming
     )
 
-    print(f"Input tokens: {response.usage.prompt_tokens}")
-    print(f"Output tokens: {response.usage.completion_tokens}")
-    print(f"Total tokens: {response.usage.total_tokens}")
-
-    return response.choices[0].message.content
-
+    response = ""
+    for chunk in stream:
+        response = chunk.choices[0].delta.content or ''
+        yield response
 
 
 
