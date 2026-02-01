@@ -48,9 +48,22 @@ with gr.Blocks() as demo:
         placeholder="Ask a question, or share a thought from the Second Night…",
         label="Your message"
     )
+
+     # Use gr.Examples for clickable prompts
+    examples = gr.Examples(
+        examples=[
+            "Summarize the chapter in under 200 words",
+            "Explain the tortoise allegory that the Dreamer uses in under 200 words",
+            "Describe Nastenka’s role in the Second Night",
+        ],
+        inputs=msg  # bind examples to this Textbox
+    )
+
     clear = gr.Button("Clear conversation")
 
+    # Wire submit
     msg.submit(chat_with_professor_stream, [msg, chatbot], [chatbot, msg])
+    # examples.click(chat_with_professor_stream, [msg, chatbot], [chatbot, msg])
     clear.click(lambda: [], None, chatbot)
 
 demo.launch(
