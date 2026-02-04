@@ -13,7 +13,7 @@ client = OpenAI(
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     api_key=google_api_key
 )
-MODEL = "gemini-3-flash-preview"
+MODEL = "gemini-2.5-flash"
 
 system_message = """
 You are FlightAI, an automated airline assistant.
@@ -35,10 +35,9 @@ def chat(message, history):
     history = [{"role":h["role"], "content":h["content"]} for h in history]
     messages = [{"role": "system", "content": system_message}] + history + [{"role": "user", "content": message}]
     response = client.chat.completions.create(model=MODEL, messages=messages, tools=tools, tool_choice="auto")
-
-    if response.choices[0].finish_reason == "tool_calls":
+    while response.choices[0].finish_reason == "tool_calls":
         message = response.choices[0].message
-        response = handle_tool_call(message)
+        response = handle_tool_calls(message)
         messages.append(message)
         messages.append(response)
         response = client.chat.completions.create(model=MODEL, messages=messages)
@@ -71,18 +70,21 @@ price_function = {
 }
 
 
-def handle_tool_call(message):
-    tool_call = message.tool_calls[0]
-    if tool_call.function.name == "get_ticket_price":
-        arguments = json.loads(tool_call.function.arguments)
-        city = arguments.get('destination_city')
-        price_details = get_ticket_price(city)
-        response = {
-            "role": "tool",
-            "content": price_details,
-            "tool_call_id": tool_call.id
-        }
-    return response
+def handle_tool_calls(message):
+    responses = []
+    for tool_call in message.tool_calls:
+        if tool_call.function.name == "get_ticket_price":
+            args = json.loads(tool_call.function.arguments)
+            destination_city = args.get("destination_city")
+            tool_response = get_ticket_price(destination_city)
+            responses.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": tool_response
+                }
+            )
+    return responses       
 
 
 tools = [{"type": "function", "function": price_function}]
