@@ -13,7 +13,7 @@ load_dotenv(override=True)
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 DB_PATH = os.getenv("DB_PATH")
 
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-2.5-flash-lite"
 
 CURRENT_SESSION_ID = str(uuid.uuid4())
 IS_SAVED_SESSION = False
@@ -47,6 +47,10 @@ You have tools available:
 3) If user says:
    "load conversation 2"
    → call load_conversation(index=2)
+
+4) If the user says:
+   "start a new conversation"
+   → call start_new_conversation
 
 Rules:
 - Do NOT reference events from the First Night beyond minimal context
@@ -99,7 +103,7 @@ def save_conversation(session_id, name, summary):
     c.execute("""
         INSERT OR REPLACE INTO conversations (session_id, name, summary, created_at)
         VALUES (?, ?, ?, ?)
-    """, (session_id, name, summary, datetime.utcnow().isoformat()))
+    """, (session_id, name, summary, datetime.now(timezone.utc).isoformat()))
 
     conn.commit()
     conn.close()
@@ -191,6 +195,13 @@ TOOLS = [
                 "required": ["index"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "start_new_conversation",
+            "description": "Start a brand new conversation session with a new session ID"
+        }
     }
 ]
 
@@ -273,10 +284,21 @@ def ask_second_night(question: str, history, session_state):
                     print(f"[TOOL] Failed to load conversation")
                 else:
                     history = load_history(session_id) # load the message history of the selected conversation
+                    print(f"[TOOL] Loaded {len(history)} messages from conversation")
                     session_state['id'] = session_id
                     session_state["is_saved"] = True
                     result_content = f"Loaded conversation {args['index']}."
                     print(f"[TOOL] Conversation loaded successfully")
+
+            elif name == "start_new_conversation":
+                print(f"[TOOL] start_new_conversation handler called")
+
+                new_session_id = str(uuid.uuid4())
+                session_state["id"] = new_session_id
+                session_state["is_saved"] = False
+
+                result_content = f"Started a new conversation (session {new_session_id[:8]}...)."
+                print(f"[TOOL] New session created: {new_session_id[:8]}...")
 
             # Send the tool response back to the model for further processing
             messages.append(response_message) # Add assistant's tool call
@@ -290,7 +312,7 @@ def ask_second_night(question: str, history, session_state):
             
         print(f"[API] Calling {MODEL} again with tool responses")
         final_response = client.chat.completions.create(model=MODEL, messages=messages)
-        answer = final_response.choices[0].message.content
+        answer = final_response.choices[0].message.content or ""
         print(f"[API] Final response received from model")
     else:
         answer = response_message.content or ""
